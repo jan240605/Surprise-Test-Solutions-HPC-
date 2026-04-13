@@ -1,0 +1,178 @@
+jan@LAPTOP-AJE3DMPK:/mnt/c/Users/janan/sem6/hpc/test$ cat producer_consumer.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <omp.h>
+
+#define SIZE 5
+
+int buffer[SIZE];
+int count = 0;
+
+// Producer function
+void producer(int id) {
+    int item = rand() % 100;
+
+    #pragma omp critical
+    {
+        if (count < SIZE) {
+            buffer[count++] = item;
+            printf("Producer %d produced %d\n", id, item);
+        } else {
+            printf("Buffer full! Producer %d skipped\n", id);
+        }
+    }
+}
+
+// Consumer function
+void consumer(int id) {
+    #pragma omp critical
+    {
+        if (count > 0) {
+            int item = buffer[--count];
+            printf("Consumer %d consumed %d\n", id, item);
+        } else {
+            printf("Buffer empty! Consumer %d skipped\n", id);
+        }
+    }
+}
+
+int main() {
+    omp_set_num_threads(4);
+
+    #pragma omp parallel
+    {
+        int id = omp_get_thread_num();
+
+        // Step 1: Producers run first
+        if (id % 2 == 0)
+            producer(id);
+
+        // Wait for all producers
+        #pragma omp barrier
+
+        // Step 2: Consumers run
+        if (id % 2 != 0)
+            consumer(id);
+    }
+
+    return 0;
+}
+jan@LAPTOP-AJE3DMPK:/mnt/c/Users/janan/sem6/hpc/test$ gcc producer_consumer.c -fopenmp -o producer_consumer
+jan@LAPTOP-AJE3DMPK:/mnt/c/Users/janan/sem6/hpc/test$ ./producer_consumer
+Producer 0 produced 83
+Producer 2 produced 86
+Consumer 1 consumed 86
+Consumer 3 consumed 83
+jan@LAPTOP-AJE3DMPK:/mnt/c/Users/janan/sem6/hpc/test$ cat prime_count.c
+#include <stdio.h>
+#include <omp.h>
+
+int isPrime(int n) {
+    if (n < 2) return 0;
+    for (int i = 2; i*i <= n; i++)
+        if (n % i == 0) return 0;
+    return 1;
+}
+
+int main() {
+    int n = 20, count = 0;
+
+    #pragma omp parallel for reduction(+:count)
+    for (int i = 2; i <= n; i++) {
+        if (isPrime(i))
+            count++;
+    }
+
+    printf("Total primes between 1 and %d = %d\n", n, count);
+    return 0;
+}
+jan@LAPTOP-AJE3DMPK:/mnt/c/Users/janan/sem6/hpc/test$ gcc prime_count.c -fopenmp -o prime_count
+jan@LAPTOP-AJE3DMPK:/mnt/c/Users/janan/sem6/hpc/test$ ./prime_count
+Total primes between 1 and 20 = 8
+jan@LAPTOP-AJE3DMPK:/mnt/c/Users/janan/sem6/hpc/test$ cat max_array.c
+#include <stdio.h>
+#include <omp.h>
+
+int main() {
+    int arr[] = {10, 25, 5, 40, 15};
+    int max = arr[0];
+
+    #pragma omp parallel for reduction(max:max)
+    for (int i = 0; i < 5; i++) {
+        if (arr[i] > max)
+            max = arr[i];
+    }
+
+    printf("Maximum element = %d\n", max);
+    return 0;
+}
+jan@LAPTOP-AJE3DMPK:/mnt/c/Users/janan/sem6/hpc/test$ gcc max_array.c -fopenmp -o max_array
+jan@LAPTOP-AJE3DMPK:/mnt/c/Users/janan/sem6/hpc/test$ ./max_array
+Maximum element = 40
+jan@LAPTOP-AJE3DMPK:/mnt/c/Users/janan/sem6/hpc/test$ cat multithread_tasks.c
+#include <stdio.h>
+#include <omp.h>
+
+int isPrime(int n) {
+    if (n < 2) return 0;
+    for (int i = 2; i*i <= n; i++)
+        if (n % i == 0) return 0;
+    return 1;
+}
+
+int main() {
+    int arr[] = {6, 7, 10, 13};
+    int n = 4;
+
+    #pragma omp parallel for
+    for (int i = 0; i < n; i++) {
+
+        #pragma omp critical
+        {
+            printf("\nNumber: %d\n", arr[i]);
+
+            // Prime check
+            if (isPrime(arr[i]))
+                printf("Prime\n");
+            else
+                printf("Not Prime\n");
+
+            // Even / Odd
+            if (arr[i] % 2 == 0)
+                printf("Even\n");
+            else
+                printf("Odd\n");
+
+            // Factors
+            printf("Factors: ");
+            for (int j = 1; j <= arr[i]; j++) {
+                if (arr[i] % j == 0)
+                    printf("%d ", j);
+            }
+            printf("\n");
+        }
+    }
+    return 0;
+}
+jan@LAPTOP-AJE3DMPK:/mnt/c/Users/janan/sem6/hpc/test$ gcc multithread_tasks.c -fopenmp -o multithread_tasks
+jan@LAPTOP-AJE3DMPK:/mnt/c/Users/janan/sem6/hpc/test$ ./multithread_tasks
+
+Number: 10
+Not Prime
+Even
+Factors: 1 2 5 10
+
+Number: 7
+Prime
+Odd
+Factors: 1 7
+
+Number: 13
+Prime
+Odd
+Factors: 1 13
+
+Number: 6
+Not Prime
+Even
+Factors: 1 2 3 6
